@@ -33,6 +33,20 @@ module "blog_vpc" {
   }
 }
 
+// AWS EC2 instance resource
+resource "aws_instance" "blog" {
+  ami           = data.aws_ami.app_ami.id
+  instance_type = var.instance_type
+
+  vpc_security_group_ids = [module.blog_sg.security_group_id]
+
+  subnet_id = element(module.blog_vpc.public_subnets, 0)
+
+  tags = {
+    Name = "Learning Terraform"
+  }
+}
+
 module "autoscaling" {
   source = "terraform-aws-modules/autoscaling/aws"
   version = "~> 5.0"
@@ -42,7 +56,7 @@ module "autoscaling" {
   max_size = 2
 
   vpc_zone_identifier = module.blog_vpc.public_subnets
-  target_group_arns = [module.alb.target_groups["target_blog"].arn]
+  target_group_arns = [module.alb.target_group_arns]
   security_groups = [module.blog_sg.security_group_id]
 
   image_id = data.aws_ami.app_ami.id
@@ -74,11 +88,12 @@ module "alb" {
   }
 
   target_groups = {
-    target_blog = {
-    name_prefix      = "blog"
-    protocol         = "HTTP"
-    port             = 80
-    target_type      = "instance"
+    ex-instance = {
+      name_prefix      = "blog"
+      protocol         = "HTTP"
+      port             = 80
+      target_type      = "instance"
+      target_id        = aws_instance.blog.id
     }
   }
 
